@@ -1,0 +1,89 @@
+name: Friday
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore: 'README.md'
+  workflow_dispatch:
+    
+env:
+  GitHubMail: "lonewolf.gaurav.friday@gmail.com"
+  GitHubName: "N0BLEWOLF"
+  PIP_NO_CACHE_DIR: 1
+  LANG: "C.UTF-8"
+  GOOGLE_CHROME_DRIVER: "/usr/bin/chromedriver"
+  GOOGLE_CHROME_BIN: "/usr/bin/google-chrome-stable"
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+       - name: Setup
+         run: |
+           sudo su
+           sudo -i
+           sudo rm -rf /usr/local/bin/npm /usr/local/share/man/man1/node* /usr/local/lib/dtrace/node.d ~/.npm ~/.node-gyp /opt/local/bin/node opt/local/include/node /opt/local/lib/node_modules
+           sudo rm -rf /usr/local/lib/node*
+           sudo rm -rf /usr/local/include/node*
+           sudo rm -rf /usr/local/bin/node*
+           sudo apt install software-properties-common
+           sudo add-apt-repository ppa:deadsnakes/ppa
+           sudo apt install python3.9
+           sudo rm -rf /usr/bin/python
+           if sudo [ ! -e /usr/bin/python ]; then sudo ln -sf /usr/bin/python3 /usr/bin/python; fi 
+           git config --global user.email ${GitHubMail}
+           git config --global user.name ${GitHubName}
+           git config --global credential.helper store
+           sudo echo "https://${GitHubName}:${{ secrets.GH_TOKEN }}@github.com" > ~/.git-credentials
+           sudo git clone https://github.com/DevsExpo/FridayUserbot /app/
+           cd /app/
+           sudo sed -i.bak 's/us-west-2\.ec2\.//' /etc/apt/sources.list
+           sudo curl -sL https://deb.nodesource.com/setup_16.x -o nodesource_setup.sh
+           sudo bash nodesource_setup.sh
+           sudo apt-get install nodejs
+           sudo apt -qq update && apt -qq upgrade -y && \
+           sudo apt -qq install -y --no-install-recommends \
+           apt-utils \
+           gnupg2 \
+           wget \
+           unzip \
+           procps \
+           tree
+           sudo mkdir -p /tmp/ && \
+           cd /tmp/ && \
+           sudo wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && \
+           sudo dpkg -i ./google-chrome-stable_current_amd64.deb; apt -fqqy install && \
+           sudo rm ./google-chrome-stable_current_amd64.deb
+           sudo mkdir -p /tmp/ && \
+           cd /tmp/ && \
+           sudo wget -O /tmp/chromedriver.zip http://chromedriver.storage.googleapis.com/$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE)/chromedriver_linux64.zip && \
+           sudo unzip /tmp/chromedriver.zip chromedriver -d /usr/bin/ && \
+           sudo rm /tmp/chromedriver.zip
+           sudo apt -qq update && sudo apt -qq install -y --no-install-recommends \
+           gcc python3-dev zlib1g-dev \
+           apt-transport-https \
+           build-essential coreutils jq pv \
+           ffmpeg mediainfo \
+           neofetch \
+           p7zip-full \
+           libfreetype6-dev libjpeg-dev libpng-dev libgif-dev libwebp-dev && \
+           sudo rm -rf /var/lib/apt/lists /var/cache/apt/archives /tmp/*
+           cd /app/
+           sudo pip3 install -U setuptools wheel && \
+           sudo pip3 install --no-cache-dir -r requirements.txt
+       - name: Running Friday
+         timeout-minutes: 350
+         continue-on-error: true
+         run: |
+           sudo wget ${{ secrets.CREDS }} -P /app/
+           cd /app/
+           sudo python3 -m main_startup
+       - name: Loop workflow
+         continue-on-error: true
+         run: |
+           git clone -b main https://${{ secrets.GH_TOKEN }}@github.com/${GITHUB_REPOSITORY} loop
+           cd loop || exit 1
+           echo $(( RANDOM - ( RANDOM % RANDOM ) )) > loop.txt
+           git add looper.txt
+           git commit -m "Workflow : Loop at $(date -u +%D-%T%P)"
+           git push -q https://${{ secrets.GH_TOKEN }}@github.com/${GITHUB_REPOSITORY} HEAD:main
